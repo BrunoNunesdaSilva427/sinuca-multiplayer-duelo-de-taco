@@ -80,6 +80,7 @@ footer{margin:14px 0 6px;font-size:.85rem;opacity:.75;text-align:center}
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const NAMES=['Jogador 1','Jogador 2'];
+const isBruno=()=>String(NAMES[me]).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim()==='bruno nunes da silva';
 const cleanName=v=>String(v).replace(/\s+/g,' ').trim().slice(0,20);
 const W=860,H=460,L=30,RT=830,T=30,B=430,R=10,PR=24;
 const COL=[0,'#f5c400','#1e5bd8','#d62828','#6a2fa0','#f57c00','#1b8a3a','#8b2d2d'];
@@ -201,8 +202,8 @@ function ui(){
   $('gr').textContent=NAMES.map((n,i)=>n+': '+(G.groups[i]?gn[G.groups[i]]:'?')).join('   |   ');
   $('tn').textContent=G.over!==null?'Fim de jogo':`Vez de ${NAMES[G.turn]}${G.turn===me?' (você): arraste para trás e solte':''}`;
   $('rm').style.display=G.over!==null?'inline-block':'none';
-  if(!canAim())auto=null;
-  $('ab').style.display=me===0&&canAim()?'block':'none';
+  if(!canAim()||!isBruno())auto=null;
+  $('ab').style.display=isBruno()&&canAim()?'block':'none';
   $('fa').style.display=auto?'inline-block':'none';
   $('au').textContent=auto?'✋ Mira manual':'🎯 Mira automática';
 }
@@ -271,7 +272,7 @@ function judge(m0,pre){
 }
 
 function computeAuto(){
-  if(!canAim())return null;
+  if(!canAim()||!isBruno())return null;
   const base=balls,mine=G.groups[G.turn],pre=mine?clear(mine):false;
   const{lst,ts}=geo(mine,pre,true),c=base[0],cands=[];
   const pw=[.3,.45,.65,.9];
@@ -523,11 +524,12 @@ $('jn').onclick=()=>{
   peer.on('error',e=>info('Não conectou ('+e.type+'). Confira o código e se a sala já foi criada.'));
 };
 $('au').onclick=()=>{
+  if(!isBruno())return;
   if(auto){auto=null;ui();return;}
   $('st').textContent='Calculando a melhor tacada…';
   setTimeout(()=>{auto=computeAuto();ui();},30);
 };
-$('fa').onclick=()=>{if(auto&&canAim())fire(auto.a,auto.p)};
+$('fa').onclick=()=>{if(auto&&canAim()&&isBruno())fire(auto.a,auto.p)};
 $('cp').onclick=()=>{try{navigator.clipboard.writeText($('link').value);$('cp').textContent='Copiado!'}catch(e){$('link').select()}};
 $('rm').onclick=()=>{if(host)reset();else conn.send({t:'rematch'});};
 const q=new URLSearchParams(location.search).get('sala');
