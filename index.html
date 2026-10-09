@@ -477,8 +477,13 @@ function wire(){
       if(!moving&&G.over===null&&G.turn===1&&typeof d.a==='number'&&d.p>0&&d.p<=1)shoot(d.a,d.p);
     }else if(d.t==='emo'&&EM.includes(d.e)){
       showEmo(NAMES[1-me],d.e);
-    }else if(d.t==='hello'&&host&&!started&&typeof d.n==='string'){
-      NAMES[1]=cleanName(d.n)||'Convidado';start();reset();
+    }else if(d.t==='full'&&!host){
+      started=false;$('game').style.display='none';$('lobby').style.display='block';
+      info('Sala cheia: já tem dois jogadores jogando. Crie sua própria sala.');
+      try{peer.destroy()}catch(e){}
+    }else if(d.t==='hello'&&host&&typeof d.n==='string'){
+      NAMES[1]=cleanName(d.n)||'Convidado';
+      if(!started){start();reset();}else{G.msg=NAMES[1]+' voltou à partida.';send();ui();}
     }else if(d.t==='aim'&&typeof d.a==='number'&&typeof d.p==='number'&&G.turn!==me){
       if(!oppAim)oppShow={a:d.a,p:d.p};
       oppAim={a:d.a,p:Math.max(0,Math.min(1,d.p))};
@@ -501,7 +506,10 @@ $('mk').onclick=()=>{
     $('link').value=location.origin+location.pathname+'?sala='+c;
     $('wait').style.display='block';
   });
-  peer.on('connection',cn=>{conn=cn;wire();});
+  peer.on('connection',cn=>{
+    if(conn&&conn.open){cn.on('open',()=>{cn.send({t:'full'});setTimeout(()=>cn.close(),400);});return;}
+    conn=cn;wire();
+  });
   peer.on('error',e=>info('Erro: '+e.type+'. Recarregue e tente de novo.'));
 };
 $('jn').onclick=()=>{
