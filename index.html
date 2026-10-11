@@ -144,6 +144,11 @@ footer{margin:14px 0 6px;font-size:.85rem;opacity:.75;text-align:center}
       <p>Aguardando o outro jogador entrar…</p>
     </div>
   </div>
+  <div class="box" id="bx-bot">
+    <p><b>Praticar contra o bot</b><br>Sem criar sala, só para treinar.</p>
+    <input id="pn" class="nm" maxlength="20" placeholder="Seu nome (opcional)" autocomplete="off">
+    <button id="pb" class="alt">🤖 Jogar contra o bot</button>
+  </div>
   <div class="box" id="bx-join">
     <p id="jt"><b>Entrar em uma sala</b><br>Digite seu nome e o código da sala.</p>
     <input id="gn" class="nm" maxlength="20" placeholder="Seu nome" autocomplete="off">
@@ -219,7 +224,7 @@ const PK=[[L,T],[430,T],[RT,T],[L,B],[430,B],[RT,B]];
 const EM=['😀','😂','😍','😡','😭','👏','🔥','😎','🤯','🙏'];
 const $=id=>document.getElementById(id);
 const cv=$('cv');
-let peer,conn,host=false,me=0;
+let peer,conn,host=false,me=0,bot=false,botT=0;
 let balls=[],G={turn:0,groups:[null,null],msg:'',over:null,mv:false};
 let moving=false,firstHit=null,pocketed=[],frame=0,preClear=false,drag=null,auto=null;
 let AC=null,mute=false,quiet=false,ev=[],idleA=0,oppAim=null,oppShow={a:0,p:0},curP=0,lastAim='',lastAimT=0,started=false,closed=false;
@@ -488,6 +493,9 @@ function judge(m0,pre){
 
 function computeAuto(){
   if(!canAim()||!isBruno())return null;
+  return calcBest();
+}
+function calcBest(){
   const base=balls,mine=G.groups[G.turn],pre=mine?clear(mine):false;
   const{lst,ts}=geo(mine,pre,true),c=base[0],cands=[];
   const pw=[.3,.45,.65,.9];
@@ -884,6 +892,7 @@ function loop(t){
   acc=Math.min(acc+Math.max(0,t-lastT),100);lastT=t;
   while(acc>=16.667){
     acc-=16.667;
+    if(bot&&!botT&&!moving&&G.over===null&&G.turn===1&&started){botT=setTimeout(botPlay,1100);}
     if(host&&moving){
       const any=step();frame++;
       if(!any){moving=false;resolve();send();ui();}
@@ -891,6 +900,13 @@ function loop(t){
     }
   }
   draw();aimSend();requestAnimationFrame(loop);
+}
+function botPlay(){
+  botT=0;
+  if(!bot||moving||G.over!==null||G.turn!==1)return;
+  const b=calcBest();
+  const a=(b?b.a:Math.random()*6.283)+(Math.random()+Math.random()-1)*.02;
+  shoot(a,b?b.p:.5,[0,0]);
 }
 requestAnimationFrame(loop);
 
@@ -1090,6 +1106,12 @@ $('jn').onclick=()=>{
   peer.on('open',()=>{conn=peer.connect('sinuca-'+c,{reliable:true});wire();});
   peer.on('error',e=>info(e.type==='peer-unavailable'?'Sala não encontrada ou já encerrada. Confira o código.':'Não conectou ('+e.type+').'));
 };
+$('pb').onclick=()=>{
+  host=true;me=0;bot=true;myName=cleanName($('pn').value)||'Você';NAMES[0]=myName;NAMES[1]='Bot';
+  conn={open:true,send(){},close(){}};
+  oppCue=Math.floor(Math.random()*CUES.length);oppTip='';
+  start();reset();$('nr').style.display='inline-block';
+};
 $('au').onclick=()=>{
   if(!isBruno())return;
   if(auto){auto=null;ui();return;}
@@ -1104,7 +1126,7 @@ $('rm').onclick=()=>{if(host)reset();else conn.send({t:'rematch'});};
 const q=new URLSearchParams(location.search).get('sala');
 if(q){
   const c=q.toUpperCase().slice(0,5);
-  $('cd').value=c;$('cd').style.display='none';$('bx-create').style.display='none';
+  $('cd').value=c;$('cd').style.display='none';$('bx-create').style.display='none';$('bx-bot').style.display='none';
   $('jt').textContent='Você foi convidado para a sala '+c+'. Qual é o seu nome?';
   $('gn').focus();
 }
