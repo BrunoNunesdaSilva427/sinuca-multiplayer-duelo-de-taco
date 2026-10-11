@@ -275,6 +275,19 @@ const EM=['😀','😂','😍','😡','😭','👏','🔥','😎','🤯','🙏']
 const $=id=>document.getElementById(id);
 const cv=$('cv');
 let peer,conn,host=false,me=0,bot=false,botT=0;
+// ===== Conexão: STUN + TURN (necessário para VPN / firewall corporativo / faculdade) =====
+// Crie uma conta grátis em metered.ca (plano Open Relay / free) e cole abaixo o usuário e a senha do TURN.
+const TURN_USER='';
+const TURN_PASS='';
+const ICE=[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:global.stun.twilio.com:3478'}
+];
+if(TURN_USER&&TURN_PASS){
+  ['turn:global.relay.metered.ca:80','turn:global.relay.metered.ca:80?transport=tcp','turn:global.relay.metered.ca:443','turns:global.relay.metered.ca:443?transport=tcp']
+    .forEach(u=>ICE.push({urls:u,username:TURN_USER,credential:TURN_PASS}));
+}
+const PEER_OPTS={config:{iceServers:ICE,iceCandidatePoolSize:4}};
 let balls=[],G={turn:0,groups:[null,null],msg:'',over:null,mv:false};
 let moving=false,firstHit=null,pocketed=[],frame=0,preClear=false,drag=null,auto=null;
 let AC=null,mute=false,quiet=false,ev=[],idleA=0,oppAim=null,oppShow={a:0,p:0},curP=0,lastAim='',lastAimT=0,started=false,closed=false;
@@ -1260,7 +1273,7 @@ function lobbyReset(){
 function lobbyInit(){
   clearTimeout(lobbyT);
   lobbyReset();
-  const me0=lp=new Peer(LOBBY_ID);
+  const me0=lp=new Peer(LOBBY_ID,PEER_OPTS);
   me0.on('open',()=>{
     lobbyFails=0;
     hub={rooms:new Map(),subs:new Set()};
@@ -1291,7 +1304,7 @@ function lobbyInit(){
 function lobbyClient(){
   try{lp&&lp.destroy()}catch(e){}
   hub=null;
-  const me1=lp=new Peer();
+  const me1=lp=new Peer(undefined,PEER_OPTS);
   const giveUp=setTimeout(()=>{if(lp===me1&&!(lcn&&lcn.open))lobbyRetry();},9000);
   me1.on('open',()=>{
     const c=lcn=me1.connect(LOBBY_ID,{reliable:true});
@@ -1381,7 +1394,7 @@ $('mk').onclick=()=>{
   if(!nm){info('Digite seu nome para criar a sala.');return;}
   host=true;me=0;myName=nm;NAMES[0]=nm;NAMES[1]='Convidado';info('Criando sala…');
   const c=Math.random().toString(36).slice(2,7).toUpperCase();
-  peer=new Peer('sinuca-'+c);
+  peer=new Peer('sinuca-'+c,PEER_OPTS);
   peer.on('open',()=>{
     info('');$('room').textContent=c;
     $('link').value=location.origin+location.pathname+'?sala='+c;
@@ -1400,8 +1413,10 @@ $('jn').onclick=()=>{
   const nm=cleanName($('gn').value);
   if(!nm){info('Digite seu nome para entrar.');return;}
   host=false;me=1;myName=nm;NAMES[1]=nm;NAMES[0]='Anfitrião';mk();info('Conectando…');
-  peer=new Peer();
-  peer.on('open',()=>{conn=peer.connect('sinuca-'+c,{reliable:true});wire();});
+  peer=new Peer(undefined,PEER_OPTS);
+  peer.on('open',()=>{conn=peer.connect('sinuca-'+c,{reliable:true});wire();
+    setTimeout(()=>{if(!started&&!closed)info('Não foi possível conectar. Sua rede (VPN/firewall) pode estar bloqueando a conexão direta. Tente sem VPN, com outra rede ou pelo 4G.');},15000);
+  });
   peer.on('error',e=>info(e.type==='peer-unavailable'?'Sala não encontrada ou já encerrada. Confira o código.':'Não conectou ('+e.type+').'));
 };
 $('pb').onclick=()=>{
